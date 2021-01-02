@@ -1,0 +1,56 @@
+version: "3.7"
+
+services:
+  nginx:
+    image: nginx:latest
+    ports:
+      - 8000:80
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./web:/work
+    depends_on:
+      - web
+
+  web:
+    build:
+      context: ./web
+    expose:
+      - "8000"
+    working_dir: /work
+    volumes:
+      - ./web:/work
+    env_file: ./web/.env
+    environment:
+      DEBUG: 'true'
+    command: gunicorn web.wsgi:application --bind 0.0.0.0:8000 --reload
+    depends_on:
+      - mysql
+      - phpmyadmin
+
+  mysql:
+    image: mysql:latest
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: rootPass
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_DATABASE: django
+    volumes:
+      - ./mysql/custom.cnf:/etc/mysql/conf.d/custom.cnf
+      - db-data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    links:
+      - mysql
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    restart: always
+    ports:
+      - 8183:80
+
+volumes:
+  db-data:
