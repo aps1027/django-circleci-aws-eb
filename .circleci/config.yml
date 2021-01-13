@@ -10,6 +10,12 @@ jobs:
       - restore_cache:
           key: django-{{ .Branch }}-{{ checksum "requirements.txt" }}
       - run:
+          name: "Create Environment file"
+          command: |
+            mv .env.example .env
+            ls -l
+            ls -a
+      - run:
           command: |
             python3 -m venv venv
             . venv/bin/activate
@@ -18,11 +24,6 @@ jobs:
           key: django-{{ .Branch }}-{{ checksum "requirements.txt" }}
           paths:
             - "venv"
-      - run:
-          name: "Create Environment file"
-          command: |
-            mv .env.example .env
-            ls -l
       - run:
           name: Running tests
           command: |
