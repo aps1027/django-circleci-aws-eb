@@ -1,0 +1,12 @@
+{
+    "AWSEBDockerrunVersion": "1",
+    "Image": {
+      "Name": "041488479680.dkr.ecr.ap-southeast-1.amazonaws.com/django:changeme"
+    },
+    "Ports": [
+      {
+        "ContainerPort": "8000"
+      }
+    ],
+    "Logging": "/var/log/nginx"
+  }

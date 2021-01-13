@@ -1,0 +1,76 @@
+version: 2
+jobs:
+  test:
+    docker:
+      - image: circleci/python:3.8
+    working_directory: ~/django-circleci-aws-eb/web
+    steps:
+      - checkout:
+          path: ~/django-circleci-aws-eb
+      - restore_cache:
+          key: django-{{ .Branch }}-{{ checksum "requirements.txt" }}
+      - run:
+          command: |
+            python3 -m venv venv
+            . venv/bin/activate
+            pip install -r requirements.txt
+      - save_cache:
+          key: django-{{ .Branch }}-{{ checksum "requirements.txt" }}
+          paths:
+            - "venv"
+      - run:
+          name: Running tests
+          command: |
+            . venv/bin/activate
+            python3 manage.py test
+      - store_artifacts:
+          path: test-reports/
+          destination: python_app
+  build_and_push:
+    docker:
+      - image: docker:18.06.1-ce-git
+        environment:
+          DOCKER_IMAGE: web
+          APP: django
+          AWS_REGION: ap-southeast-1
+    working_directory: ~/django-circleci-aws-eb
+    steps:
+      - checkout
+      - setup_remote_docker:
+          version: 18.06.0-ce
+      - run:
+          name: Install requirements
+          command: |
+            apk add --no-cache py-pip bash
+            pip install awscli
+      - run:
+          name: docker build
+          command: |
+            docker build -t $DOCKER_IMAGE --no-cache web/.
+      - run:
+          name: push builds
+          shell: /bin/bash
+          command: |
+            set -e
+            eval $(aws --region $AWS_REGION ecr get-login --no-include-email)
+            export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --output text | awk '{print $1}')
+            export SHA1=$(echo ${CIRCLE_SHA1} | cut -c1-7)
+            docker images
+            docker tag $DOCKER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$APP:$SHA1
+            docker tag $DOCKER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$APP:$CIRCLE_BRANCH
+            time docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$APP:$SHA1
+            time docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$APP:$CIRCLE_BRANCH
+
+workflows:
+  version: 2
+  test-build-deploy:
+    jobs:
+      - test
+      - build_and_push:
+          requires:
+            - test
+          filters:
+            branches:
+              only:
+                - develop
+                - master
