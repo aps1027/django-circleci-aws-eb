@@ -22,6 +22,7 @@ jobs:
           name: "Create Environment file"
           command: |
             mv .env.example .env
+            ls -l
       - run:
           name: Running tests
           command: |
