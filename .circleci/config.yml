@@ -2,19 +2,13 @@ version: 2
 jobs:
   test:
     docker:
-      - image: circleci/python:3.8
+      - image: circleci/python:3.9.1
     working_directory: ~/django-circleci-aws-eb/web
     steps:
       - checkout:
           path: ~/django-circleci-aws-eb
       - restore_cache:
           key: django-{{ .Branch }}-{{ checksum "requirements.txt" }}
-      - run:
-          name: "Create Environment file"
-          command: |
-            mv .env.example .env
-            ls -l
-            ls -a
       - run:
           command: |
             python3 -m venv venv
