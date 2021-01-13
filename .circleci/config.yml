@@ -61,6 +61,33 @@ jobs:
             time docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$APP:$SHA1
             time docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$APP:$CIRCLE_BRANCH
 
+  deploy:
+    docker:
+      - image: circleci/python:3.7
+    steps:
+      - checkout
+      - run:
+          name: Install deploy tools
+          command: |
+            sudo pip install awsebcli==3.14.6
+            wget http://bit.ly/eb_deploy_and_notify_sh -O ~/eb_deploy_and_notify.sh
+            chmod +x ~/eb_deploy_and_notify.sh
+      - run:
+          name: Deploy!
+          shell: /bin/bash
+          command: |
+            set -e
+            eb --version
+            export EB_ENV=`eb list | grep '*' | awk '{print $2}'`
+            export SHA1=$(echo ${CIRCLE_SHA1} | cut -c1-7)
+            echo "${CIRCLE_BRANCH}" ; echo "${EB_ENV}" ; echo  "${SHA1}"
+            cd web
+            sed -i -e "s/changeme/$SHA1/" Dockerrun.aws.json
+            git add Dockerrun.aws.json
+            git rm Dockerfile
+            ~/eb_deploy_and_notify.sh ${EB_ENV} --staged
+          no_output_timeout: 15m
+
 workflows:
   version: 2
   test-build-deploy:
@@ -69,6 +96,14 @@ workflows:
       - build_and_push:
           requires:
             - test
+          filters:
+            branches:
+              only:
+                - develop
+                - master
+      - deploy:
+          requires:
+            - build_and_push
           filters:
             branches:
               only:
